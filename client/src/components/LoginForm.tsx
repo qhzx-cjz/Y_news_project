@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
+import { WaveInput } from "@/components/ui/wave-input";
 import { authApi, tokenStorage, userStorage, type User } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 interface LoginFormProps extends React.ComponentProps<"div"> {
-  /** 登录成功回调 */
   onLoginSuccess?: (user: User) => void;
 }
 
@@ -36,13 +35,11 @@ export function LoginForm({ className, onLoginSuccess, ...props }: LoginFormProp
     try {
       const response = await authApi.login(username, password);
       
-      // 保存 Token 和用户信息
       tokenStorage.set(response.access_token);
       userStorage.set(response.user);
       
       setSuccess("登录成功！");
       
-      // 回调通知父组件
       if (onLoginSuccess) {
         onLoginSuccess(response.user);
       }
@@ -53,7 +50,6 @@ export function LoginForm({ className, onLoginSuccess, ...props }: LoginFormProp
     }
   };
 
-  // 处理注册
   const handleRegister = async () => {
     if (!username || !password) {
       setError("请填写用户名和密码");
@@ -86,7 +82,6 @@ export function LoginForm({ className, onLoginSuccess, ...props }: LoginFormProp
     }
   };
 
-  // 处理表单提交
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isRegisterMode) {
@@ -100,7 +95,6 @@ export function LoginForm({ className, onLoginSuccess, ...props }: LoginFormProp
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <form onSubmit={handleSubmit}>
         <FieldGroup>
-          {/* 标题 */}
           <div className="flex flex-col items-center gap-1 text-center mb-4">
             <h1 className="text-2xl font-bold">
               {isRegisterMode ? "创建账户" : "登录账户"}
@@ -112,7 +106,6 @@ export function LoginForm({ className, onLoginSuccess, ...props }: LoginFormProp
             </p>
           </div>
 
-          {/* 错误/成功提示 */}
           {error && (
             <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-lg">
               {error}
@@ -124,59 +117,40 @@ export function LoginForm({ className, onLoginSuccess, ...props }: LoginFormProp
             </div>
           )}
 
-          {/* 用户名 */}
-          <Field>
-            <FieldLabel htmlFor="username">用户名</FieldLabel>
-            <Input
-              id="username"
-              type="text"
-              placeholder="请输入用户名"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </Field>
+          <WaveInput
+            label="用户名"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled={loading}
+            required
+          />
 
-          {/* 密码 */}
-          <Field>
-            <FieldLabel htmlFor="password">密码</FieldLabel>
-            <Input
-              id="password"
-              type="password"
-              placeholder="请输入密码（至少6位）"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </Field>
+          <WaveInput
+            label="密码"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+            required
+          />
 
-          {/* 确认密码（注册模式） */}
           {isRegisterMode && (
-            <Field>
-              <FieldLabel htmlFor="confirmPassword">确认密码</FieldLabel>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="请再次输入密码"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={loading}
-                required
-              />
-            </Field>
+            <WaveInput
+              label="确认密码"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading}
+              required
+            />
           )}
 
-          {/* 提交按钮 */}
-          <Field>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isRegisterMode ? "注册" : "登录"}
-            </Button>
-          </Field>
+          <Button type="submit" className="w-full mt-6" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isRegisterMode ? "注册" : "登录"}
+          </Button>
 
-          {/* 切换登录/注册模式 */}
           <div className="text-center text-sm">
             {isRegisterMode ? (
               <>
