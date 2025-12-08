@@ -110,3 +110,152 @@ export const userStorage = {
   },
 };
 
+
+// ==================== 草稿和文章相关 ====================
+
+export interface Draft {
+  id?: number;
+  title: string;
+  content: string;
+  updatedAt: string;
+}
+
+export interface Article {
+  id: number;
+  title: string;
+  content: string;
+  authorId: number;
+  author?: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 带认证的请求
+async function authRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const token = tokenStorage.get();
+  
+  return request<T>(endpoint, {
+    ...options,
+    headers: {
+      ...options.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
+// 草稿 API
+export const draftApi = {
+  // 获取当前用户的草稿
+  get: async (): Promise<Draft | null> => {
+    try {
+      return await authRequest<Draft>("/draft");
+    } catch {
+      return null;
+    }
+  },
+
+  // 保存草稿
+  save: async (title: string, content: string): Promise<Draft> => {
+    return authRequest<Draft>("/draft", {
+      method: "POST",
+      body: JSON.stringify({ title, content }),
+    });
+  },
+
+  // 删除草稿
+  delete: async (): Promise<{ msg: string }> => {
+    return authRequest<{ msg: string }>("/draft", {
+      method: "DELETE",
+    });
+  },
+};
+
+// 文章 API
+export const articleApi = {
+  // 发布文章
+  publish: async (title: string, content: string): Promise<Article> => {
+    return authRequest<Article>("/articles", {
+      method: "POST",
+      body: JSON.stringify({ title, content }),
+    });
+  },
+
+  // 获取文章列表（Feed流）
+  list: async (page = 1, limit = 10): Promise<{ articles: Article[]; total: number }> => {
+    return request<{ articles: Article[]; total: number }>(
+      `/articles?page=${page}&limit=${limit}`
+    );
+  },
+
+  // 获取单篇文章
+  get: async (id: number): Promise<Article> => {
+    return request<Article>(`/articles/${id}`);
+  },
+
+  // 更新文章（二次编辑）
+  update: async (id: number, title: string, content: string): Promise<Article> => {
+    return authRequest<Article>(`/articles/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ title, content }),
+    });
+  },
+
+  // 删除文章
+  delete: async (id: number): Promise<{ msg: string }> => {
+    return authRequest<{ msg: string }>(`/articles/${id}`, {
+      method: "DELETE",
+    });
+  },
+};
+
+// ==================== 本地草稿存储（支持离线） ====================
+
+export interface LocalDraft {
+  title: string;
+  content: string;
+  updatedAt: string;
+  syncedAt?: string; // 最后同步到云端的时间
+  needsSync: boolean; // 是否需要同步
+}
+
+const LOCAL_DRAFT_KEY = "editor_draft";
+
+export const localDraftStorage = {
+  get: (): LocalDraft | null => {
+    if (typeof window === "undefined") return null;
+    const data = localStorage.getItem(LOCAL_DRAFT_KEY);
+    return data ? JSON.parse(data) : null;
+  },
+
+  set: (draft: LocalDraft): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(draft));
+  },
+
+  remove: (): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(LOCAL_DRAFT_KEY);
+  },
+
+  // 标记为需要同步
+  markNeedsSync: (): void => {
+    const draft = localDraftStorage.get();
+    if (draft) {
+      draft.needsSync = true;
+      localDraftStorage.set(draft);
+    }
+  },
+
+  // 标记为已同步
+  markSynced: (): void => {
+    const draft = localDraftStorage.get();
+    if (draft) {
+      draft.needsSync = false;
+      draft.syncedAt = new Date().toISOString();
+      localDraftStorage.set(draft);
+    }
+  },
+};
