@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { DraftModule } from './draft/draft.module';
 import { ArticleModule } from './article/article.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ArticleModule } from './article/article.module';
     AuthModule,
     DraftModule,
     ArticleModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

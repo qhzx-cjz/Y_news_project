@@ -210,6 +210,38 @@ export const articleApi = {
   },
 };
 
+// 上传响应类型
+export interface UploadResponse {
+  url: string;
+  filename: string;
+}
+
+// 上传 API
+export const uploadApi = {
+  // 上传图片
+  image: async (file: File): Promise<UploadResponse> => {
+    const token = tokenStorage.get();
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE_URL}/upload/image`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "上传失败");
+    }
+
+    return response.json();
+  },
+};
+
 //本地草稿存储
 
 export interface LocalDraft {

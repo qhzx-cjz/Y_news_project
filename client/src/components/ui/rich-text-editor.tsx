@@ -5,8 +5,9 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { uploadApi, tokenStorage } from "@/lib/api";
 import {
   Bold,
   Italic,
@@ -65,13 +66,14 @@ function ToolbarButton({
 // 工具栏组件
 function EditorToolbar({ editor }: { editor: Editor | null }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const addImage = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
 
   const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !editor) return;
 
@@ -87,13 +89,32 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
         return;
       }
 
-      // 将图片转换为 Base64（实际项目中应上传到服务器）
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        editor.chain().focus().setImage({ src: base64 }).run();
-      };
-      reader.readAsDataURL(file);
+      // 检查是否已登录
+      const token = tokenStorage.get();
+      if (!token) {
+        // 未登录时使用 Base64 作为回退方案
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          editor.chain().focus().setImage({ src: base64 }).run();
+        };
+        reader.readAsDataURL(file);
+        e.target.value = "";
+        return;
+      }
+
+      // 已登录，上传到服务器
+      setIsUploading(true);
+      try {
+        const result = await uploadApi.image(file);
+        // 使用完整 URL（API_BASE_URL + 返回的相对路径）
+        const imageUrl = `http://localhost:9080${result.url}`;
+        editor.chain().focus().setImage({ src: imageUrl }).run();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "图片上传失败，请重试");
+      } finally {
+        setIsUploading(false);
+      }
 
       // 清空 input 以便重复选择同一文件
       e.target.value = "";
@@ -219,8 +240,16 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
       <div className="w-px h-6 bg-border mx-1" />
 
       {/* 图片 */}
-      <ToolbarButton onClick={addImage} title="插入图片">
-        <ImageIcon className="w-4 h-4" />
+      <ToolbarButton
+        onClick={addImage}
+        disabled={isUploading}
+        title={isUploading ? "上传中..." : "插入图片"}
+      >
+        {isUploading ? (
+          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <ImageIcon className="w-4 h-4" />
+        )}
       </ToolbarButton>
     </div>
   );
