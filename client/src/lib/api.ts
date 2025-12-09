@@ -125,6 +125,8 @@ export interface Article {
   content: string;
   authorId: number;
   author?: User;
+  likes: number;
+  views: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -206,6 +208,13 @@ export const articleApi = {
   delete: async (id: number): Promise<{ msg: string }> => {
     return authRequest<{ msg: string }>(`/articles/${id}`, {
       method: "DELETE",
+    });
+  },
+
+  // 点赞文章
+  like: async (id: number): Promise<{ likes: number }> => {
+    return request<{ likes: number }>(`/articles/${id}/like`, {
+      method: "POST",
     });
   },
 };
