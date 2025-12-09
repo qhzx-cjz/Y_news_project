@@ -111,8 +111,7 @@ export const userStorage = {
 };
 
 
-// ==================== 草稿和文章相关 ====================
-
+//草稿和文章
 export interface Draft {
   id?: number;
   title: string;
@@ -211,7 +210,7 @@ export const articleApi = {
   },
 };
 
-// ==================== 本地草稿存储（支持离线） ====================
+//本地草稿存储
 
 export interface LocalDraft {
   title: string;

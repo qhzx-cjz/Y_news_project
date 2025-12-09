@@ -53,8 +53,8 @@ function ToolbarButton({
       title={title}
       className={cn(
         "p-2 rounded-md transition-colors",
-        "hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed",
-        isActive && "bg-muted text-primary"
+        "hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed",
+        isActive && "bg-gray-200 text-primary"
       )}
     >
       {children}

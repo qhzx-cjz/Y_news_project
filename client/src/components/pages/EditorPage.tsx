@@ -263,6 +263,11 @@ export default function EditorPage() {
 
     // 初始化网络状态
     setIsOnline(navigator.onLine);
+    // if(navigator.onLine) {
+    //   console.log("在线");
+    // }else{
+    //   console.log("离线");
+    // }
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -375,7 +380,6 @@ export default function EditorPage() {
             ) : (
               <CloudOff className="w-3.5 h-3.5" />
             )}
-            <span className="text-xs">{isOnline ? "在线" : "离线"}</span>
           </div>
 
           {/* 保存状态 */}
