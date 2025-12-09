@@ -46,7 +46,15 @@ export class ArticleController {
   // GET /articles/:id - 获取单篇文章（公开）
   @Get(':id')
   async getById(@Param('id', ParseIntPipe) id: number) {
+    // 增加浏览量
+    await this.articleService.incrementViews(id);
     return this.articleService.getById(id);
+  }
+
+  // POST /articles/:id/like - 点赞文章（公开）
+  @Post(':id/like')
+  async like(@Param('id', ParseIntPipe) id: number) {
+    return this.articleService.like(id);
   }
 
   // PUT /articles/:id - 更新文章（需要登录）
@@ -70,4 +78,3 @@ export class ArticleController {
     return this.articleService.delete(id, user.sub);
   }
 }
-

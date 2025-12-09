@@ -7,6 +7,24 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 
+// 文章数据类型（包含新字段 likes 和 views）
+// 注意：运行 `npx prisma generate` 后可以使用 @prisma/client 的类型
+interface ArticleData {
+  id: number;
+  title: string;
+  content: string;
+  authorId: number;
+  likes: number;
+  views: number;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: {
+    id: number;
+    username: string;
+    avatar: string | null;
+  } | null;
+}
+
 @Injectable()
 export class ArticleService {
   constructor(private prisma: PrismaService) {}
@@ -30,7 +48,7 @@ export class ArticleService {
       },
     });
 
-    return this.formatArticle(article);
+    return this.formatArticle(article as unknown as ArticleData);
   }
 
   // 获取文章列表（分页）
@@ -56,7 +74,9 @@ export class ArticleService {
     ]);
 
     return {
-      articles: articles.map((article) => this.formatArticle(article)),
+      articles: (articles as unknown as ArticleData[]).map((article) => {
+        return this.formatArticle(article);
+      }),
       total,
     };
   }
@@ -80,7 +100,7 @@ export class ArticleService {
       throw new NotFoundException('文章不存在');
     }
 
-    return this.formatArticle(article);
+    return this.formatArticle(article as unknown as ArticleData);
   }
 
   // 更新文章（二次编辑）
@@ -116,7 +136,7 @@ export class ArticleService {
       },
     });
 
-    return this.formatArticle(updated);
+    return this.formatArticle(updated as unknown as ArticleData);
   }
 
   // 删除文章
@@ -142,8 +162,31 @@ export class ArticleService {
     return { msg: '文章已删除' };
   }
 
+  // 增加浏览量
+  async incrementViews(id: number) {
+    await this.prisma
+      .$executeRaw`UPDATE Article SET views = views + 1 WHERE id = ${id}`;
+  }
+
+  // 点赞文章
+  async like(id: number) {
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+    });
+
+    if (!article) {
+      throw new NotFoundException('文章不存在');
+    }
+
+    await this.prisma
+      .$executeRaw`UPDATE Article SET likes = likes + 1 WHERE id = ${id}`;
+
+    const currentLikes = (article as unknown as ArticleData).likes ?? 0;
+    return { likes: currentLikes + 1 };
+  }
+
   // 格式化文章输出
-  private formatArticle(article: any) {
+  private formatArticle(article: ArticleData) {
     return {
       id: article.id,
       title: article.title,
@@ -156,9 +199,16 @@ export class ArticleService {
             avatar: article.author.avatar,
           }
         : undefined,
-      createdAt: article.createdAt.toISOString(),
-      updatedAt: article.updatedAt.toISOString(),
+      likes: article.likes ?? 0,
+      views: article.views ?? 0,
+      createdAt:
+        article.createdAt instanceof Date
+          ? article.createdAt.toISOString()
+          : String(article.createdAt),
+      updatedAt:
+        article.updatedAt instanceof Date
+          ? article.updatedAt.toISOString()
+          : String(article.updatedAt),
     };
   }
 }
-
