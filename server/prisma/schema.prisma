@@ -14,10 +14,39 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String   // 加密后的密码
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  password  String    // 加密后的密码
   nickname  String?
-  avatar    String?           // 头像URL
+  avatar    String?   // 头像URL
+  createdAt DateTime  @default(now())
+  
+  // 关联
+  draft     Draft?    // 每个用户只有一个草稿
+  articles  Article[] // 用户发布的文章
+}
+
+// 草稿表 - 每个用户只有一个草稿
+model Draft {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  content   String   @db.LongText  // 富文本内容可能很长
+  userId    Int      @unique       // 一个用户只有一个草稿
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+// 文章表
+model Article {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(255)
+  content   String   @db.LongText  // 富文本内容
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([authorId])
+  @@index([createdAt])
 }
