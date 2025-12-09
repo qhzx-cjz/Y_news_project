@@ -194,6 +194,12 @@ export default function FeedPage() {
   const touchStartY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
+
+  // 使用 ref 避免闭包陷阱
+  const isLoadingRef = useRef(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
 
   // 刷新阈值
   const PULL_THRESHOLD = 80;
@@ -201,8 +207,10 @@ export default function FeedPage() {
   // 加载文章列表
   const loadArticles = useCallback(
     async (pageNum: number, isRefresh = false) => {
-      if (isLoading) return;
+      // 使用 ref 检查，避免闭包陷阱
+      if (isLoadingRef.current) return;
 
+      isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
 
@@ -215,23 +223,29 @@ export default function FeedPage() {
           setArticles((prev) => [...prev, ...result.articles]);
         }
 
-        setHasMore(result.articles.length === PAGE_SIZE);
+        const newHasMore = result.articles.length === PAGE_SIZE;
+        setHasMore(newHasMore);
+        hasMoreRef.current = newHasMore;
         setPage(pageNum);
+        pageRef.current = pageNum;
       } catch (err) {
         setError(err instanceof Error ? err.message : "加载失败");
       } finally {
+        isLoadingRef.current = false;
         setIsLoading(false);
         setIsInitialLoading(false);
       }
     },
-    [isLoading]
+    [] // 移除依赖，使用 ref 代替
   );
 
-  // 初始加载
-  useEffect(() => {
-    loadArticles(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 加载更多
+  const loadMore = useCallback(() => {
+    // 使用 ref 获取最新值，避免闭包陷阱
+    if (!isLoadingRef.current && hasMoreRef.current) {
+      loadArticles(pageRef.current + 1);
+    }
+  }, [loadArticles]);
 
   // 下拉刷新
   const handleRefresh = useCallback(async () => {
@@ -241,12 +255,37 @@ export default function FeedPage() {
     setPullDistance(0);
   }, [loadArticles]);
 
-  // 加载更多
-  const loadMore = useCallback(() => {
-    if (!isLoading && hasMore) {
-      loadArticles(page + 1);
-    }
-  }, [isLoading, hasMore, page, loadArticles]);
+  // 初始加载
+  useEffect(() => {
+    loadArticles(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 使用 IntersectionObserver 实现滚动加载
+  useEffect(() => {
+    const trigger = loadMoreTriggerRef.current;
+    if (!trigger) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !isLoadingRef.current && hasMoreRef.current) {
+          loadMore();
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: "100px", // 提前 100px 触发
+        threshold: 0,
+      }
+    );
+
+    observer.observe(trigger);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [loadMore]);
 
   // 触摸开始
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -431,6 +470,9 @@ export default function FeedPage() {
           />
         ))}
 
+        {/* 滚动加载触发器 */}
+        <div ref={loadMoreTriggerRef} className="h-1" />
+
         {/* 加载更多状态 */}
         <div className="py-4 text-center text-sm text-muted-foreground">
           {isLoading ? (
@@ -439,7 +481,12 @@ export default function FeedPage() {
               <span>加载中...</span>
             </div>
           ) : hasMore ? (
-            <span>上滑加载更多</span>
+            <button
+              onClick={loadMore}
+              className="px-4 py-2 hover:bg-muted rounded-lg transition-colors"
+            >
+              点击或上滑加载更多
+            </button>
           ) : (
             <span>已经到底啦 ~</span>
           )}
