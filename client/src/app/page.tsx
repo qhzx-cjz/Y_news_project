@@ -83,7 +83,7 @@ export default function Home() {
       />
 
       {/* 主内容区域 */}
-      <main className="flex-1 pt-12 pb-14">
+      <main className="flex-1 pt-12 pb-14 overflow-hidden">
         {renderPage()}
       </main>
 

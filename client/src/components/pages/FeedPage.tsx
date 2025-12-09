@@ -204,6 +204,34 @@ export default function FeedPage() {
   // 刷新阈值
   const PULL_THRESHOLD = 80;
 
+  // 检查触发器是否在视口内
+  const checkTriggerVisible = useCallback(() => {
+    const trigger = loadMoreTriggerRef.current;
+    const container = scrollContainerRef.current;
+    if (!trigger || !container) return false;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // 检查触发器是否在容器视口内（包含一定的提前量）
+    return triggerRect.top < containerRect.bottom + 100;
+  }, []);
+
+  // 用 ref 存储 loadArticles 以避免循环依赖
+  const loadArticlesRef = useRef<((pageNum: number, isRefresh?: boolean) => Promise<void>) | null>(null);
+
+  // 尝试加载更多（如果触发器可见）
+  const tryLoadMore = useCallback(() => {
+    if (!isLoadingRef.current && hasMoreRef.current && checkTriggerVisible()) {
+      // 使用 setTimeout 确保 DOM 已更新
+      setTimeout(() => {
+        if (!isLoadingRef.current && hasMoreRef.current && checkTriggerVisible()) {
+          loadArticlesRef.current?.(pageRef.current + 1);
+        }
+      }, 100);
+    }
+  }, [checkTriggerVisible]);
+
   // 加载文章列表
   const loadArticles = useCallback(
     async (pageNum: number, isRefresh = false) => {
@@ -239,9 +267,11 @@ export default function FeedPage() {
     [] // 移除依赖，使用 ref 代替
   );
 
-  // 加载更多
+  // 保存 loadArticles 到 ref，供 tryLoadMore 使用
+  loadArticlesRef.current = loadArticles;
+
+  // 加载更多（手动触发）
   const loadMore = useCallback(() => {
-    // 使用 ref 获取最新值，避免闭包陷阱
     if (!isLoadingRef.current && hasMoreRef.current) {
       loadArticles(pageRef.current + 1);
     }
@@ -260,6 +290,14 @@ export default function FeedPage() {
     loadArticles(1, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 监听文章列表变化，检查是否需要继续加载
+  useEffect(() => {
+    // 当文章列表更新后，检查是否需要加载更多以填满屏幕
+    if (articles.length > 0 && !isLoading) {
+      tryLoadMore();
+    }
+  }, [articles.length, isLoading, tryLoadMore]);
 
   // 使用 IntersectionObserver 实现滚动加载
   useEffect(() => {
