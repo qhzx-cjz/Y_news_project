@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { articleApi, type Article } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Heart, Eye, Loader2, RefreshCw } from "lucide-react";
@@ -178,6 +179,8 @@ function FeedCard({ article, onLike, onClick }: FeedCardProps) {
 type PullState = "idle" | "pulling" | "ready" | "refreshing";
 
 export default function FeedPage() {
+  const router = useRouter();
+  
   // 文章列表状态
   const [articles, setArticles] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
@@ -394,12 +397,10 @@ export default function FeedPage() {
     );
   }, []);
 
-  // 点击文章 - 跳转详情页（预留接口）
+  // 点击文章 - 跳转详情页
   const handleArticleClick = useCallback((articleId: number) => {
-    // TODO: 跳转到详情页
-    console.log("Navigate to article detail:", articleId);
-    // 后续可以使用 router.push(`/article/${articleId}`)
-  }, []);
+    router.push(`/article/${articleId}`);
+  }, [router]);
 
   // 渲染下拉刷新提示
   const renderPullIndicator = () => {
