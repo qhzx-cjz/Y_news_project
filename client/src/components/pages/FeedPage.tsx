@@ -195,6 +195,7 @@ export default function FeedPage() {
 
   // 触摸位置记录
   const touchStartY = useRef(0);
+  const isTouchingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -203,6 +204,7 @@ export default function FeedPage() {
   const isLoadingRef = useRef(false);
   const pageRef = useRef(1);
   const hasMoreRef = useRef(true);
+  const pullStateRef = useRef<PullState>("idle");
 
   // 刷新阈值
   const PULL_THRESHOLD = 80;
@@ -282,8 +284,10 @@ export default function FeedPage() {
 
   // 下拉刷新
   const handleRefresh = useCallback(async () => {
+    pullStateRef.current = "refreshing";
     setPullState("refreshing");
     await loadArticles(1, true);
+    pullStateRef.current = "idle";
     setPullState("idle");
     setPullDistance(0);
   }, [loadArticles]);
@@ -330,47 +334,55 @@ export default function FeedPage() {
 
   // 触摸开始
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const scrollTop = scrollContainerRef.current?.scrollTop || 0;
-    if (scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
-    }
+    // 总是记录起始位置，后续在 move 中判断是否可以下拉
+    touchStartY.current = e.touches[0].clientY;
+    isTouchingRef.current = true;
   }, []);
 
   // 触摸移动
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (pullState === "refreshing") return;
+      if (!isTouchingRef.current) return;
+      if (pullStateRef.current === "refreshing") return;
 
       const scrollTop = scrollContainerRef.current?.scrollTop || 0;
-      if (scrollTop > 0) return;
-
       const currentY = e.touches[0].clientY;
       const distance = currentY - touchStartY.current;
 
-      if (distance > 0) {
+      // 只有在顶部且向下拉时才触发下拉刷新
+      if (scrollTop <= 0 && distance > 0) {
+        // 阻止默认滚动行为，防止浏览器接管
+        e.preventDefault();
+        
         // 阻尼效果
         const dampedDistance = Math.min(distance * 0.5, 120);
         setPullDistance(dampedDistance);
 
         if (dampedDistance >= PULL_THRESHOLD) {
+          pullStateRef.current = "ready";
           setPullState("ready");
         } else {
+          pullStateRef.current = "pulling";
           setPullState("pulling");
         }
       }
     },
-    [pullState]
+    []
   );
 
   // 触摸结束
   const handleTouchEnd = useCallback(() => {
-    if (pullState === "ready") {
+    isTouchingRef.current = false;
+    
+    if (pullStateRef.current === "ready") {
+      pullStateRef.current = "refreshing";
       handleRefresh();
     } else {
+      pullStateRef.current = "idle";
       setPullState("idle");
       setPullDistance(0);
     }
-  }, [pullState, handleRefresh]);
+  }, [handleRefresh]);
 
   // 滚动加载更多
   const handleScroll = useCallback(
@@ -490,14 +502,16 @@ export default function FeedPage() {
       {/* 文章列表 */}
       <div
         ref={scrollContainerRef}
-        className="h-full overflow-y-auto"
+        className="h-full overflow-y-auto overscroll-none"
         style={{
           transform: `translateY(${pullDistance}px)`,
           transition: pullState === "idle" ? "transform 0.2s" : "none",
+          WebkitOverflowScrolling: "touch",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         onScroll={handleScroll}
       >
         {articles.map((article) => (
