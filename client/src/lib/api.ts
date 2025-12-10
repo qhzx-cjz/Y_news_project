@@ -35,6 +35,7 @@ async function request<T>(
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true", // 跳过 ngrok 免费版的警告页面
       ...options.headers,
     },
   };
@@ -243,6 +244,7 @@ export const uploadApi = {
     const response = await fetch(`${API_BASE_URL}/upload/image`, {
       method: "POST",
       headers: {
+        "ngrok-skip-browser-warning": "true", // 跳过 ngrok 免费版的警告页面
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
