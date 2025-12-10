@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { articleApi, type Article, fixImageUrls } from "@/lib/api";
+import { NgrokImage } from "@/components/ui/ngrok-image";
 import { cn } from "@/lib/utils";
 import { Heart, Eye, Loader2, RefreshCw } from "lucide-react";
 
@@ -190,7 +191,7 @@ function FeedCard({ article, onLike, onClick, onTagClick }: FeedCardProps) {
           {/* 图片预览 */}
           {imageUrl && (
             <div className="mt-3 rounded-xl overflow-hidden border border-border">
-              <img
+              <NgrokImage
                 src={imageUrl}
                 alt="文章图片"
                 className="w-full max-h-80 object-cover"

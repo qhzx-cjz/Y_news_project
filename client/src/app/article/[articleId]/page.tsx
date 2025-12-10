@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { articleApi, tokenStorage, userStorage, type Article, fixImageUrls } from "@/lib/api";
+import { NgrokImage } from "@/components/ui/ngrok-image";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Heart, Eye, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import BottomNav, { type PageType } from "@/components/BottomNav";
@@ -413,7 +414,7 @@ export default function ArticleDetailPage() {
                     images.length === 1 && "max-w-full"
                   )}
                 >
-                  <img
+                  <NgrokImage
                     src={src}
                     alt={`图片 ${index + 1}`}
                     className={cn(
