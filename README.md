@@ -1,4 +1,4 @@
-# News Lite
+# Y News
 
 一个轻量级的短图文社交平台，类似Twitter的信息流应用。
 
