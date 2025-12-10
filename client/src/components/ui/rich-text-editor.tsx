@@ -7,7 +7,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Underline from "@tiptap/extension-underline";
 import { useEffect, useCallback, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { uploadApi, tokenStorage } from "@/lib/api";
+import { uploadApi, tokenStorage, getApiBaseUrl } from "@/lib/api";
 import {
   Bold,
   Italic,
@@ -108,7 +108,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
       try {
         const result = await uploadApi.image(file);
         // 使用完整 URL（API_BASE_URL + 返回的相对路径）
-        const imageUrl = `http://localhost:9080${result.url}`;
+        const imageUrl = `${getApiBaseUrl()}${result.url}`;
         editor.chain().focus().setImage({ src: imageUrl }).run();
       } catch (err) {
         alert(err instanceof Error ? err.message : "图片上传失败，请重试");

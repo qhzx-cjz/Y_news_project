@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { articleApi, tokenStorage, userStorage, type Article } from "@/lib/api";
+import { articleApi, tokenStorage, userStorage, type Article, fixImageUrls } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Heart, Eye, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import BottomNav, { type PageType } from "@/components/BottomNav";
@@ -298,8 +298,10 @@ export default function ArticleDetailPage() {
   const authorAvatar =
     article.author?.avatar ||
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${article.author?.username || "user"}`;
-  const textContent = extractTextContent(article.content);
-  const images = extractAllImages(article.content);
+  // 修复图片 URL（将 localhost 替换为当前 API 地址）
+  const fixedContent = fixImageUrls(article.content);
+  const textContent = extractTextContent(fixedContent);
+  const images = extractAllImages(fixedContent);
 
   return (
     <div className="flex flex-col min-h-screen bg-background pb-14">

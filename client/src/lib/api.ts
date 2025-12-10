@@ -1,6 +1,22 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9080";
 
+// 导出获取 API 基础 URL 的函数，用于构建完整的资源 URL（如图片）
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
+}
+
+// 替换内容中的图片 URL，将 localhost 地址替换为当前 API 地址
+// 用于解决历史数据中图片 URL 使用 localhost 导致其他设备无法访问的问题
+export function fixImageUrls(content: string): string {
+  if (!content) return content;
+  // 替换 http://localhost:9080/uploads/ 为当前 API 基础 URL
+  return content.replace(
+    /http:\/\/localhost:9080\/uploads\//g,
+    `${API_BASE_URL}/uploads/`
+  );
+}
+
 
 export interface User {
   id: number;

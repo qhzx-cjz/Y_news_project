@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { articleApi, type Article } from "@/lib/api";
+import { articleApi, type Article, fixImageUrls } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Heart, Eye, Loader2, RefreshCw } from "lucide-react";
 
@@ -120,8 +120,10 @@ function FeedCard({ article, onLike, onClick, onTagClick }: FeedCardProps) {
   const [localLikes, setLocalLikes] = useState(article.likes);
   const [hasLiked, setHasLiked] = useState(false);
 
-  const textContent = extractTextContent(article.content);
-  const imageUrl = extractFirstImage(article.content);
+  // 修复图片 URL（将 localhost 替换为当前 API 地址）
+  const fixedContent = fixImageUrls(article.content);
+  const textContent = extractTextContent(fixedContent);
+  const imageUrl = extractFirstImage(fixedContent);
   const authorAvatar =
     article.author?.avatar ||
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${article.author?.username || "user"}`;
