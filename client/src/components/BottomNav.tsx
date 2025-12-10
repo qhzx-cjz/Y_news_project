@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { House, PenSquare, Search } from "lucide-react";
+import { House, PenSquare, CircleUserRound } from "lucide-react";
 
 
 export type PageType = "feed" | "editor" | "search" | "profile" | "login";
@@ -17,7 +17,7 @@ export default function BottomNav({ currentPage, onPageChange }: BottomNavProps)
   const navItems: { key: PageType; icon: typeof House }[] = [
     { key: "feed",icon: House },
     { key: "editor",icon: PenSquare },
-    { key: "search", icon: Search },
+    { key: "profile", icon: CircleUserRound },
   ];
 
   return (

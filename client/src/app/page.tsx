@@ -26,11 +26,9 @@ export default function Home() {
     }
   }, []);
 
-  // 用户头像
   const userAvatar = user?.avatar || 
     (isLoggedIn ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}` : undefined);
 
-  // 处理顶部导航栏头像点击
   const handleAvatarClick = () => {
     if (isLoggedIn) {
       setCurrentPage("profile");
@@ -39,14 +37,12 @@ export default function Home() {
     }
   };
 
-  // 处理登录成功
   const handleLoginSuccess = (loggedInUser: User) => {
     setIsLoggedIn(true);
     setUser(loggedInUser);
     setCurrentPage("feed");
   };
 
-  // 处理退出登录
   const handleLogout = () => {
     tokenStorage.remove();
     userStorage.remove();
@@ -55,7 +51,6 @@ export default function Home() {
     setCurrentPage("feed");
   };
 
-  // 根据当前页面状态渲染对应的页面组件
   const renderPage = () => {
     switch (currentPage) {
       case "feed":
@@ -75,19 +70,16 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* 顶部导航栏 */}
       <TopNav 
         isLoggedIn={isLoggedIn} 
         avatarUrl={userAvatar}
         onAvatarClick={handleAvatarClick}
       />
 
-      {/* 主内容区域 */}
       <main className="flex-1 pt-12 pb-14 overflow-hidden">
         {renderPage()}
       </main>
 
-      {/* 底部导航栏 */}
       <BottomNav currentPage={currentPage} onPageChange={setCurrentPage} />
     </div>
   );
