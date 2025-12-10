@@ -26,7 +26,11 @@ const AUTO_SAVE_INTERVAL = 30000;
 // 保存状态类型
 type SaveStatus = "idle" | "saving" | "saved" | "error" | "offline";
 
-export default function EditorPage() {
+interface EditorPageProps {
+  initialTag?: string; // 初始标签（从 URL 参数传入）
+}
+
+export default function EditorPage({ initialTag }: EditorPageProps) {
   // 编辑器内容状态
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -84,7 +88,7 @@ export default function EditorPage() {
   // 执行保存操作
   const performSave = useCallback(async () => {
     if (!title.trim() && !content.trim()) {
-      return; // 空内容不保存
+      return; 
     }
 
     setSaveStatus("saving");
@@ -149,7 +153,7 @@ export default function EditorPage() {
       
       // 发布成功，清除草稿
       localDraftStorage.remove();
-      await draftApi.delete().catch(() => {}); // 忽略删除云端草稿的错误
+      await draftApi.delete().catch(() => {});
       
       // 清空编辑器
       setTitle("");
@@ -322,6 +326,28 @@ export default function EditorPage() {
     }
   }, [message]);
 
+  // 处理从 URL 传入的初始标签
+  useEffect(() => {
+    if (initialTag) {
+      // 在内容开头添加标签（如果内容为空或只是空段落）
+      const tagText = `#${initialTag} `;
+      setContent((prevContent) => {
+        if (!prevContent.trim() || prevContent === "<p></p>") {
+          return `<p>${tagText}</p>`;
+        }
+        // 如果已有内容且不包含该标签，在末尾添加
+        if (!prevContent.includes(`#${initialTag}`)) {
+          if (prevContent.endsWith("</p>")) {
+            return prevContent.slice(0, -4) + ` ${tagText}</p>`;
+          }
+          return prevContent + `<p>${tagText}</p>`;
+        }
+        return prevContent;
+      });
+      setHasChanges(true);
+    }
+  }, [initialTag]); // 只在 initialTag 变化时执行
+
   // 渲染保存状态指示器
   const renderSaveStatus = () => {
     const statusConfig = {
@@ -455,7 +481,7 @@ export default function EditorPage() {
         <RichTextEditor
           content={content}
           onChange={handleContentChange}
-          placeholder="开始编写你的内容..."
+          placeholder="开始编写你的内容，使用#添加标签，使用空格分隔各个标签..."
           className="h-full min-h-[400px]"
         />
       </div>

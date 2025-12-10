@@ -56,14 +56,66 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
+// 渲染带标签高亮的文本
+interface RenderTextWithTagsProps {
+  text: string;
+  onTagClick: (tag: string) => void;
+}
+
+function RenderTextWithTags({ text, onTagClick }: RenderTextWithTagsProps) {
+  // 匹配 #标签 格式
+  const tagRegex = /(#[\u4e00-\u9fa5a-zA-Z0-9_]{1,50})(?=\s|$|[^\u4e00-\u9fa5a-zA-Z0-9_#]|$)/g;
+  const parts: { type: "text" | "tag"; content: string }[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tagRegex.exec(text)) !== null) {
+    // 添加标签前的普通文本
+    if (match.index > lastIndex) {
+      parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
+    }
+    // 添加标签
+    parts.push({ type: "tag", content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // 添加剩余的普通文本
+  if (lastIndex < text.length) {
+    parts.push({ type: "text", content: text.slice(lastIndex) });
+  }
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.type === "tag" ? (
+          <span
+            key={index}
+            className="text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              // 去掉 # 符号传递标签名
+              onTagClick(part.content.slice(1));
+            }}
+          >
+            {part.content}
+          </span>
+        ) : (
+          <span key={index}>{part.content}</span>
+        )
+      )}
+    </>
+  );
+}
+
 // 单条 Feed 卡片组件
 interface FeedCardProps {
   article: Article;
   onLike: (id: number) => void;
   onClick: (id: number) => void;
+  onTagClick: (tag: string) => void;
 }
 
-function FeedCard({ article, onLike, onClick }: FeedCardProps) {
+function FeedCard({ article, onLike, onClick, onTagClick }: FeedCardProps) {
   const [isLiking, setIsLiking] = useState(false);
   const [localLikes, setLocalLikes] = useState(article.likes);
   const [hasLiked, setHasLiked] = useState(false);
@@ -129,7 +181,7 @@ function FeedCard({ article, onLike, onClick }: FeedCardProps) {
           {/* 正文内容 */}
           {textContent && (
             <p className="text-sm mt-1 text-foreground/90 line-clamp-3 whitespace-pre-wrap">
-              {textContent}
+              <RenderTextWithTags text={textContent} onTagClick={onTagClick} />
             </p>
           )}
 
@@ -414,6 +466,11 @@ export default function FeedPage() {
     router.push(`/article/${articleId}`);
   }, [router]);
 
+  // 点击标签 - 跳转到编辑器并填充标签
+  const handleTagClick = useCallback((tag: string) => {
+    router.push(`/?page=editor&tag=${encodeURIComponent(tag)}`);
+  }, [router]);
+
   // 渲染下拉刷新提示
   const renderPullIndicator = () => {
     const isActive = pullState !== "idle";
@@ -520,6 +577,7 @@ export default function FeedPage() {
             article={article}
             onLike={handleLike}
             onClick={handleArticleClick}
+            onTagClick={handleTagClick}
           />
         ))}
 

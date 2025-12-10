@@ -53,6 +53,57 @@ function extractTextContent(html: string): string {
   return text;
 }
 
+// 渲染带标签高亮的文本
+interface RenderTextWithTagsProps {
+  text: string;
+  onTagClick: (tag: string) => void;
+}
+
+function RenderTextWithTags({ text, onTagClick }: RenderTextWithTagsProps) {
+  // 匹配 #标签 格式
+  const tagRegex = /(#[\u4e00-\u9fa5a-zA-Z0-9_]{1,50})(?=\s|$|[^\u4e00-\u9fa5a-zA-Z0-9_#]|$)/g;
+  const parts: { type: "text" | "tag"; content: string }[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tagRegex.exec(text)) !== null) {
+    // 添加标签前的普通文本
+    if (match.index > lastIndex) {
+      parts.push({ type: "text", content: text.slice(lastIndex, match.index) });
+    }
+    // 添加标签
+    parts.push({ type: "tag", content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // 添加剩余的普通文本
+  if (lastIndex < text.length) {
+    parts.push({ type: "text", content: text.slice(lastIndex) });
+  }
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.type === "tag" ? (
+          <span
+            key={index}
+            className="text-blue-500 hover:text-blue-600 hover:underline cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              // 去掉 # 符号传递标签名
+              onTagClick(part.content.slice(1));
+            }}
+          >
+            {part.content}
+          </span>
+        ) : (
+          <span key={index}>{part.content}</span>
+        )
+      )}
+    </>
+  );
+}
+
 export default function ArticleDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -101,6 +152,11 @@ export default function ArticleDetailPage() {
     } else {
       router.push(`/?page=${page}`);
     }
+  };
+
+  // 点击标签 - 跳转到编辑器并填充标签
+  const handleTagClick = (tag: string) => {
+    router.push(`/?page=editor&tag=${encodeURIComponent(tag)}`);
   };
 
   // 点赞处理
@@ -227,7 +283,7 @@ export default function ArticleDetailPage() {
           {/* 文章正文 */}
           {textContent && (
             <div className="mt-4 text-base leading-relaxed whitespace-pre-wrap">
-              {textContent}
+              <RenderTextWithTags text={textContent} onTagClick={handleTagClick} />
             </div>
           )}
 

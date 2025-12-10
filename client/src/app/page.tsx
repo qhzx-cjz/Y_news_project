@@ -20,6 +20,7 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
+  const tagParam = searchParams.get("tag"); // 获取标签参数
   
   // 初始状态为未登录，确保服务端和客户端一致
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -87,7 +88,7 @@ export default function Home() {
       case "feed":
         return <FeedPage />;
       case "editor":
-        return <EditorPage />;
+        return <EditorPage initialTag={tagParam || undefined} />;
       case "profile":
         return <ProfilePage onLogout={handleLogout} user={user} />;
       case "login":
