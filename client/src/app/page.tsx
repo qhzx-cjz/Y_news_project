@@ -1,46 +1,77 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import BottomNav, { type PageType } from "@/components/BottomNav";
 import TopNav from "@/components/TopNav";
 import FeedPage from "@/components/pages/FeedPage";
 import EditorPage from "@/components/pages/EditorPage";
-import SearchPage from "@/components/pages/SearchPage";
 import ProfilePage from "@/components/pages/ProfilePage";
 import LoginPage from "@/components/pages/LoginPage";
 import { tokenStorage, userStorage, type User } from "@/lib/api";
 
+// 验证页面类型
+const validPages: PageType[] = ["feed", "editor", "search", "profile", "login"];
+function isValidPage(page: string | null): page is PageType {
+  return page !== null && validPages.includes(page as PageType);
+}
+
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState<PageType>("feed");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pageParam = searchParams.get("page");
+  
+  // 初始状态为未登录，确保服务端和客户端一致
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-
-  // 页面加载时检查登录状态
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  // 客户端挂载后从 localStorage 读取登录状态
+  // 这是处理 SSR 水合的标准模式，需要在客户端挂载后读取浏览器存储
   useEffect(() => {
-    const token = tokenStorage.get();
-    const savedUser = userStorage.get();
-    
-    if (token && savedUser) {
-      setIsLoggedIn(true);
-      setUser(savedUser);
-    }
+    const initAuth = () => {
+      setHasMounted(true);
+      const token = tokenStorage.get();
+      const savedUser = userStorage.get();
+      if (token && savedUser) {
+        setIsLoggedIn(true);
+        setUser(savedUser);
+      }
+    };
+    initAuth();
   }, []);
 
-  const userAvatar = user?.avatar || 
-    (isLoggedIn ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}` : undefined);
+  // 从 URL 参数获取当前页面，默认 feed
+  const currentPage: PageType = isValidPage(pageParam) ? pageParam : "feed";
+  
+  // 页面切换处理
+  const handlePageChange = (page: PageType) => {
+    if (page === "feed") {
+      router.push("/");
+    } else {
+      router.push(`/?page=${page}`);
+    }
+  };
+
+  // 只有在客户端挂载后才计算头像，避免水合错误
+  const userAvatar = hasMounted && user?.avatar 
+    ? user.avatar 
+    : hasMounted && isLoggedIn 
+      ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username}` 
+      : undefined;
 
   const handleAvatarClick = () => {
     if (isLoggedIn) {
-      setCurrentPage("profile");
+      handlePageChange("profile");
     } else {
-      setCurrentPage("login");
+      handlePageChange("login");
     }
   };
 
   const handleLoginSuccess = (loggedInUser: User) => {
     setIsLoggedIn(true);
     setUser(loggedInUser);
-    setCurrentPage("feed");
+    handlePageChange("feed");
   };
 
   const handleLogout = () => {
@@ -48,7 +79,7 @@ export default function Home() {
     userStorage.remove();
     setIsLoggedIn(false);
     setUser(null);
-    setCurrentPage("feed");
+    handlePageChange("feed");
   };
 
   const renderPage = () => {
@@ -57,8 +88,6 @@ export default function Home() {
         return <FeedPage />;
       case "editor":
         return <EditorPage />;
-      case "search":
-        return <SearchPage />;
       case "profile":
         return <ProfilePage onLogout={handleLogout} user={user} />;
       case "login":
@@ -71,7 +100,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       <TopNav 
-        isLoggedIn={isLoggedIn} 
+        isLoggedIn={hasMounted && isLoggedIn} 
         avatarUrl={userAvatar}
         onAvatarClick={handleAvatarClick}
       />
@@ -80,7 +109,7 @@ export default function Home() {
         {renderPage()}
       </main>
 
-      <BottomNav currentPage={currentPage} onPageChange={setCurrentPage} />
+      <BottomNav currentPage={currentPage} onPageChange={handlePageChange} />
     </div>
   );
 }

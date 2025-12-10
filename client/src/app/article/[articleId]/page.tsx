@@ -41,11 +41,9 @@ function extractAllImages(html: string): string[] {
   return images;
 }
 
-// 从 HTML 内容中提取纯文本（去除标签）
+// 从 HTML 内容中提取纯文本
 function extractTextContent(html: string): string {
-  // 移除图片标签
   const withoutImages = html.replace(/<img[^>]*>/g, "");
-  // 移除所有 HTML 标签，保留换行
   const text = withoutImages
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
@@ -96,10 +94,13 @@ export default function ArticleDetailPage() {
   };
 
   // 底部导航处理
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handlePageChange = (page: PageType) => {
-    // 所有导航都跳转到首页，由首页处理页面切换
-    router.push("/");
+    // 跳转到首页并传递目标页面参数
+    if (page === "feed") {
+      router.push("/");
+    } else {
+      router.push(`/?page=${page}`);
+    }
   };
 
   // 点赞处理
