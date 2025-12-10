@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { articleApi, type Article } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Heart, Eye, Loader2 } from "lucide-react";
+import BottomNav, { type PageType } from "@/components/BottomNav";
 
 // 格式化详细时间显示
 function formatDetailTime(dateString: string): string {
@@ -94,6 +95,13 @@ export default function ArticleDetailPage() {
     router.push("/");
   };
 
+  // 底部导航处理
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handlePageChange = (page: PageType) => {
+    // 所有导航都跳转到首页，由首页处理页面切换
+    router.push("/");
+  };
+
   // 点赞处理
   const handleLike = async () => {
     if (isLiking || hasLiked || !article) return;
@@ -113,7 +121,7 @@ export default function ArticleDetailPage() {
   // 加载中状态
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-background pb-14">
         {/* 顶部导航栏 */}
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border">
           <div className="flex items-center h-12 px-4">
@@ -131,6 +139,8 @@ export default function ArticleDetailPage() {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <p className="mt-2 text-sm text-muted-foreground">加载中...</p>
         </div>
+
+        <BottomNav currentPage="feed" onPageChange={handlePageChange} />
       </div>
     );
   }
@@ -138,7 +148,7 @@ export default function ArticleDetailPage() {
   // 错误状态
   if (error || !article) {
     return (
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-background pb-14">
         {/* 顶部导航栏 */}
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border">
           <div className="flex items-center h-12 px-4">
@@ -161,6 +171,8 @@ export default function ArticleDetailPage() {
             返回首页
           </button>
         </div>
+
+        <BottomNav currentPage="feed" onPageChange={handlePageChange} />
       </div>
     );
   }
@@ -172,7 +184,7 @@ export default function ArticleDetailPage() {
   const images = extractAllImages(article.content);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background pb-14">
       {/* 顶部导航栏 */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border">
         <div className="flex items-center h-12 px-4">
@@ -285,6 +297,9 @@ export default function ArticleDetailPage() {
           </div>
         </article>
       </main>
+
+      {/* 底部导航栏 */}
+      <BottomNav currentPage="feed" onPageChange={handlePageChange} />
     </div>
   );
 }

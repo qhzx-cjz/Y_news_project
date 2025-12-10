@@ -1,4 +1,4 @@
-import { LogOut, Settings, ChevronRight, User as UserIcon, Bell, Shield, HelpCircle } from "lucide-react";
+import { LogOut, User as UserIcon} from "lucide-react";
 import type { User } from "@/lib/api";
 
 interface ProfilePageProps {
