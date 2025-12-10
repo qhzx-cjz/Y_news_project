@@ -26,14 +26,24 @@ const AUTO_SAVE_INTERVAL = 30000;
 // 保存状态类型
 type SaveStatus = "idle" | "saving" | "saved" | "error" | "offline";
 
-interface EditorPageProps {
-  initialTag?: string; // 初始标签（从 URL 参数传入）
+interface EditArticleData {
+  id: number;
+  title: string;
+  content: string;
 }
 
-export default function EditorPage({ initialTag }: EditorPageProps) {
+interface EditorPageProps {
+  initialTag?: string; // 初始标签（从 URL 参数传入）
+  editArticle?: EditArticleData; // 编辑模式：要编辑的文章数据
+}
+
+export default function EditorPage({ initialTag, editArticle }: EditorPageProps) {
   // 编辑器内容状态
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [title, setTitle] = useState(editArticle?.title || "");
+  const [content, setContent] = useState(editArticle?.content || "");
+  
+  // 编辑模式状态
+  const [editingArticleId, setEditingArticleId] = useState<number | null>(editArticle?.id || null);
   
   // UI 状态
   const [isOnline, setIsOnline] = useState(true);
@@ -42,8 +52,11 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   
-  // 标记内容是否有变化（用于判断是否需要保存）
+  // 标记内容是否有变化
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // 避免SSR错误
+  const [hasMounted, setHasMounted] = useState(false);
   
   // 定时器引用
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,9 +64,18 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
   // 用于防止初始化时重复加载草稿
   const isInitializedRef = useRef(false);
 
-  // 检查是否已登录
+  // 检查是否已登录（只在客户端挂载后才真正检查）
   const isLoggedIn = useCallback(() => {
+    if (!hasMounted) return false; // 服务端渲染时始终返回 false
     return !!tokenStorage.get();
+  }, [hasMounted]);
+  
+  // 客户端挂载后设置状态
+  useEffect(() => {
+    const init = () => {
+      setHasMounted(true);
+    };
+    init();
   }, []);
 
   // 保存到本地
@@ -123,7 +145,7 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
     await performSave();
   }, [performSave]);
 
-  // 发布文章
+  // 发布或更新文章
   const handlePublish = useCallback(async () => {
     if (!title.trim()) {
       setMessage({ type: "error", text: "请输入文章标题" });
@@ -149,9 +171,19 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
     setMessage(null);
 
     try {
-      await articleApi.publish(title, content);
+      if (editingArticleId) {
+        // 编辑模式：更新文章
+        await articleApi.update(editingArticleId, title, content);
+        setMessage({ type: "success", text: "🎉 文章已更新！" });
+        // 更新成功后退出编辑模式
+        setEditingArticleId(null);
+      } else {
+        // 新建模式：发布文章
+        await articleApi.publish(title, content);
+        setMessage({ type: "success", text: "🎉 发布成功！" });
+      }
       
-      // 发布成功，清除草稿
+      // 成功后清除草稿
       localDraftStorage.remove();
       await draftApi.delete().catch(() => {});
       
@@ -159,17 +191,15 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
       setTitle("");
       setContent("");
       setHasChanges(false);
-      
-      setMessage({ type: "success", text: "🎉 发布成功！" });
     } catch (err) {
       setMessage({
         type: "error",
-        text: err instanceof Error ? err.message : "发布失败，请重试",
+        text: err instanceof Error ? err.message : (editingArticleId ? "更新失败，请重试" : "发布失败，请重试"),
       });
     } finally {
       setIsPublishing(false);
     }
-  }, [title, content, isLoggedIn, isOnline]);
+  }, [title, content, isLoggedIn, isOnline, editingArticleId]);
 
   // 标题变化处理
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -328,7 +358,7 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
 
   // 处理从 URL 传入的初始标签
   useEffect(() => {
-    if (initialTag) {
+    if (initialTag && !editArticle) {
       // 在内容开头添加标签（如果内容为空或只是空段落）
       const tagText = `#${initialTag} `;
       setContent((prevContent) => {
@@ -346,7 +376,17 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
       });
       setHasChanges(true);
     }
-  }, [initialTag]); // 只在 initialTag 变化时执行
+  }, [initialTag, editArticle]); // 只在 initialTag 变化时执行
+
+  // 处理编辑模式：填充文章内容
+  useEffect(() => {
+    if (editArticle) {
+      setTitle(editArticle.title);
+      setContent(editArticle.content);
+      setEditingArticleId(editArticle.id);
+      setHasChanges(false);
+    }
+  }, [editArticle]);
 
   // 渲染保存状态指示器
   const renderSaveStatus = () => {
@@ -413,18 +453,20 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 保存按钮 */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleManualSave}
-            disabled={saveStatus === "saving" || (!title.trim() && !content.trim())}
-          >
-            <Save className="w-4 h-4 mr-1.5" />
-            保存草稿
-          </Button>
+          {/* 保存按钮 - 编辑模式下隐藏 */}
+          {!editingArticleId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualSave}
+              disabled={saveStatus === "saving" || (!title.trim() && !content.trim())}
+            >
+              <Save className="w-4 h-4 mr-1.5" />
+              保存草稿
+            </Button>
+          )}
 
-          {/* 发布按钮 */}
+          {/* 发布/更新按钮 */}
           <Button
             size="sm"
             onClick={handlePublish}
@@ -436,7 +478,7 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
             ) : (
               <Send className="w-4 h-4 mr-1.5" />
             )}
-            发布
+            {editingArticleId ? "更新" : "发布"}
           </Button>
         </div>
       </div>
@@ -452,6 +494,13 @@ export default function EditorPage({ initialTag }: EditorPageProps) {
           )}
         >
           {message.text}
+        </div>
+      )}
+
+      {/* 编辑模式提示 */}
+      {editingArticleId && (
+        <div className="mb-4 p-3 rounded-lg bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-sm">
+          ✏️ 编辑模式：修改后点击「更新」按钮保存更改
         </div>
       )}
 

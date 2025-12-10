@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { articleApi, type Article } from "@/lib/api";
+import { articleApi, tokenStorage, userStorage, type Article } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Heart, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Heart, Eye, Loader2, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import BottomNav, { type PageType } from "@/components/BottomNav";
 
 // 格式化详细时间显示
@@ -115,6 +115,22 @@ export default function ArticleDetailPage() {
   const [isLiking, setIsLiking] = useState(false);
   const [localLikes, setLocalLikes] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
+  
+  // 溢出菜单状态
+  const [showMenu, setShowMenu] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  
+  // 检查当前用户是否是文章作者
+  const isAuthor = () => {
+    const user = userStorage.get();
+    return user && article && user.id === article.authorId;
+  };
+  
+  // 检查是否已登录
+  const isLoggedIn = () => {
+    return !!tokenStorage.get();
+  };
 
   // 加载文章详情
   useEffect(() => {
@@ -158,6 +174,51 @@ export default function ArticleDetailPage() {
   const handleTagClick = (tag: string) => {
     router.push(`/?page=editor&tag=${encodeURIComponent(tag)}`);
   };
+
+  // 删除文章
+  const handleDelete = async () => {
+    if (!article || isDeleting) return;
+    
+    const confirmed = window.confirm("确定要删除这篇文章吗？此操作不可撤销。");
+    if (!confirmed) return;
+    
+    setIsDeleting(true);
+    try {
+      await articleApi.delete(article.id);
+      router.push("/");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "删除失败");
+      setIsDeleting(false);
+    }
+  };
+
+  // 编辑文章
+  const handleEdit = () => {
+    if (!article) return;
+    // 将文章数据编码到 URL 参数中
+    const editData = encodeURIComponent(JSON.stringify({
+      id: article.id,
+      title: article.title,
+      content: article.content,
+    }));
+    router.push(`/?page=editor&edit=${editData}`);
+  };
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMenu]);
 
   // 点赞处理
   const handleLike = async () => {
@@ -244,14 +305,59 @@ export default function ArticleDetailPage() {
     <div className="flex flex-col min-h-screen bg-background pb-14">
       {/* 顶部导航栏 */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center h-12 px-4">
-          <button
-            onClick={handleBack}
-            className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="ml-4 text-lg font-semibold">帖子</h1>
+        <div className="flex items-center justify-between h-12 px-4">
+          <div className="flex items-center">
+            <button
+              onClick={handleBack}
+              className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="ml-4 text-lg font-semibold">帖子</h1>
+          </div>
+          
+          {/* 溢出菜单 - 只有作者本人可见 */}
+          {isLoggedIn() && isAuthor() && (
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 -mr-2 rounded-full hover:bg-muted transition-colors"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <MoreVertical className="w-5 h-5" />
+                )}
+              </button>
+              
+              {/* 下拉菜单 */}
+              {showMenu && (
+                <div className="absolute right-0 top-full mt-1 w-36 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-20">
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      handleEdit();
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-muted transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    <span>编辑文章</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowMenu(false);
+                      handleDelete();
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>删除文章</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 

@@ -21,6 +21,20 @@ export default function Home() {
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
   const tagParam = searchParams.get("tag"); // 获取标签参数
+  const editParam = searchParams.get("edit"); // 获取编辑文章参数
+  
+  // 解析编辑文章数据
+  const editArticle = editParam ? (() => {
+    try {
+      return JSON.parse(decodeURIComponent(editParam)) as {
+        id: number;
+        title: string;
+        content: string;
+      };
+    } catch {
+      return undefined;
+    }
+  })() : undefined;
   
   // 初始状态为未登录，确保服务端和客户端一致
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -88,7 +102,7 @@ export default function Home() {
       case "feed":
         return <FeedPage />;
       case "editor":
-        return <EditorPage initialTag={tagParam || undefined} />;
+        return <EditorPage initialTag={tagParam || undefined} editArticle={editArticle} />;
       case "profile":
         return <ProfilePage onLogout={handleLogout} user={user} />;
       case "login":
