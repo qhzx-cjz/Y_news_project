@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import BottomNav, { type PageType } from "@/components/BottomNav";
 import TopNav from "@/components/TopNav";
@@ -9,6 +9,7 @@ import EditorPage from "@/components/pages/EditorPage";
 import ProfilePage from "@/components/pages/ProfilePage";
 import LoginPage from "@/components/pages/LoginPage";
 import { tokenStorage, userStorage, type User } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 // 验证页面类型
 const validPages: PageType[] = ["feed", "editor", "search", "profile", "login"];
@@ -16,7 +17,18 @@ function isValidPage(page: string | null): page is PageType {
   return page !== null && validPages.includes(page as PageType);
 }
 
-export default function Home() {
+// 加载占位组件
+function LoadingFallback() {
+  return (
+    <div className="flex flex-col min-h-screen items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <p className="mt-2 text-sm text-muted-foreground">加载中...</p>
+    </div>
+  );
+}
+
+// 主页内容组件（使用 useSearchParams）
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
@@ -42,7 +54,6 @@ export default function Home() {
   const [hasMounted, setHasMounted] = useState(false);
   
   // 客户端挂载后从 localStorage 读取登录状态
-  // 这是处理 SSR 水合的标准模式，需要在客户端挂载后读取浏览器存储
   useEffect(() => {
     const initAuth = () => {
       setHasMounted(true);
@@ -126,5 +137,13 @@ export default function Home() {
 
       <BottomNav currentPage={currentPage} onPageChange={handlePageChange} />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <HomeContent />
+    </Suspense>
   );
 }
