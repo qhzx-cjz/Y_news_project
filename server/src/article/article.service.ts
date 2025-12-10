@@ -7,8 +7,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 
-// 文章数据类型（包含新字段 likes 和 views）
-// 注意：运行 `npx prisma generate` 后可以使用 @prisma/client 的类型
+// 标签数据类型
+interface TagData {
+  id: number;
+  name: string;
+}
+
+// 文章数据类型（包含新字段 likes、views 和 tags）
 interface ArticleData {
   id: number;
   title: string;
@@ -23,19 +28,68 @@ interface ArticleData {
     username: string;
     avatar: string | null;
   } | null;
+  tags?: TagData[];
 }
 
 @Injectable()
 export class ArticleService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * 从内容中提取标签
+   * 匹配 #标签名 格式，标签名支持中文、英文、数字、下划线
+   * 标签以空格、换行或其他非标签字符结束
+   */
+  private extractTags(content: string): string[] {
+    // 先移除 HTML 标签，避免匹配到 HTML 属性中的 #
+    const textContent = content.replace(/<[^>]+>/g, ' ');
+    // 匹配 #标签 格式，标签名支持中英文、数字、下划线，长度 1-50
+    const tagRegex = /#([\u4e00-\u9fa5a-zA-Z0-9_]{1,50})(?=\s|$|[^\u4e00-\u9fa5a-zA-Z0-9_#])/g;
+    const tags: string[] = [];
+    let match;
+    while ((match = tagRegex.exec(textContent)) !== null) {
+      const tagName = match[1].toLowerCase(); // 统一小写
+      if (!tags.includes(tagName)) {
+        tags.push(tagName);
+      }
+    }
+    return tags;
+  }
+
+  /**
+   * 创建或获取标签，返回标签 ID 列表
+   */
+  private async getOrCreateTags(tagNames: string[]): Promise<{ id: number }[]> {
+    if (tagNames.length === 0) return [];
+
+    // 使用 upsert 确保标签存在
+    const tagPromises = tagNames.map(async (name) => {
+      const tag = await this.prisma.tag.upsert({
+        where: { name },
+        update: {}, // 已存在则不更新
+        create: { name },
+        select: { id: true },
+      });
+      return tag;
+    });
+
+    return Promise.all(tagPromises);
+  }
+
   // 发布文章
   async publish(authorId: number, dto: CreateArticleDto) {
+    // 从内容中提取标签
+    const tagNames = this.extractTags(dto.content);
+    const tags = await this.getOrCreateTags(tagNames);
+
     const article = await this.prisma.article.create({
       data: {
         title: dto.title,
         content: dto.content,
         authorId,
+        tags: {
+          connect: tags, // 关联标签
+        },
       },
       include: {
         author: {
@@ -43,6 +97,12 @@ export class ArticleService {
             id: true,
             username: true,
             avatar: true,
+          },
+        },
+        tags: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -68,6 +128,12 @@ export class ArticleService {
               avatar: true,
             },
           },
+          tags: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       }),
       this.prisma.article.count(),
@@ -91,6 +157,12 @@ export class ArticleService {
             id: true,
             username: true,
             avatar: true,
+          },
+        },
+        tags: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -119,11 +191,18 @@ export class ArticleService {
       throw new ForbiddenException('只能编辑自己的文章');
     }
 
+    // 从新内容中提取标签（如果有内容更新）
+    const tagNames = dto.content ? this.extractTags(dto.content) : [];
+    const tags = await this.getOrCreateTags(tagNames);
+
     const updated = await this.prisma.article.update({
       where: { id },
       data: {
         title: dto.title,
         content: dto.content,
+        tags: {
+          set: tags, // 重新设置标签关联（先断开所有，再连接新的）
+        },
       },
       include: {
         author: {
@@ -131,6 +210,12 @@ export class ArticleService {
             id: true,
             username: true,
             avatar: true,
+          },
+        },
+        tags: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -199,6 +284,10 @@ export class ArticleService {
             avatar: article.author.avatar,
           }
         : undefined,
+      tags: article.tags?.map((tag) => ({
+        id: tag.id,
+        name: tag.name,
+      })) ?? [],
       likes: article.likes ?? 0,
       views: article.views ?? 0,
       createdAt:

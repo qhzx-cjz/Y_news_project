@@ -119,12 +119,18 @@ export interface Draft {
   updatedAt: string;
 }
 
+export interface Tag {
+  id: number;
+  name: string;
+}
+
 export interface Article {
   id: number;
   title: string;
   content: string;
   authorId: number;
   author?: User;
+  tags?: Tag[];
   likes: number;
   views: number;
   createdAt: string;
