@@ -17,7 +17,6 @@ export default function BottomNav({ currentPage, onPageChange }: BottomNavProps)
   const navItems: { key: PageType; icon: typeof House }[] = [
     { key: "feed",icon: House },
     { key: "editor",icon: PenSquare },
-    { key: "profile", icon: CircleUserRound },
   ];
 
   return (

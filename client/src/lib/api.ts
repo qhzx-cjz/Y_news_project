@@ -10,7 +10,6 @@ export function getApiBaseUrl(): string {
 // 用于解决历史数据中图片 URL 使用 localhost 导致其他设备无法访问的问题
 export function fixImageUrls(content: string): string {
   if (!content) return content;
-  // 替换 http://localhost:9080/uploads/ 为当前 API 基础 URL
   return content.replace(
     /http:\/\/localhost:9080\/uploads\//g,
     `${API_BASE_URL}/uploads/`
